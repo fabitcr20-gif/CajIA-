@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import clsx from "clsx";
+import { Pencil, Trash2 } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { SaleEditModal } from "@/components/sales/SaleEditModal";
 import {
   addDaysToKey,
   formatCurrency,
@@ -16,7 +19,7 @@ import {
   timeLabel,
   todayKey,
 } from "@/lib/selectors";
-import { PaymentMethod } from "@/lib/types";
+import { PaymentMethod, Sale } from "@/lib/types";
 
 type FilterKey = "hoy" | "ayer" | "semana" | "mes" | "personalizado";
 
@@ -36,10 +39,15 @@ const METHOD_TONE: Record<PaymentMethod, "navy" | "accent" | "warning"> = {
 
 export default function VentasPage() {
   const sales = useCajiaStore((s) => s.sales);
+  const products = useCajiaStore((s) => s.products);
+  const updateSale = useCajiaStore((s) => s.updateSale);
+  const deleteSale = useCajiaStore((s) => s.deleteSale);
   const today = todayKey();
   const [filter, setFilter] = useState<FilterKey>("hoy");
   const [customStart, setCustomStart] = useState(addDaysToKey(today, -7));
   const [customEnd, setCustomEnd] = useState(today);
+  const [editTarget, setEditTarget] = useState<Sale | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null);
 
   const { start, end } = useMemo(() => {
     switch (filter) {
@@ -65,6 +73,18 @@ export default function VentasPage() {
 
   const showDate = filter !== "hoy" && filter !== "ayer";
   const total = sumTotal(rangeSales);
+
+  function handleSaveEdit(items: Sale["items"], method: PaymentMethod) {
+    if (!editTarget) return;
+    updateSale(editTarget.id, items, method);
+    setEditTarget(null);
+  }
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    deleteSale(deleteTarget.id);
+    setDeleteTarget(null);
+  }
 
   return (
     <div className="animate-fade-in pb-6">
@@ -140,6 +160,22 @@ export default function VentasPage() {
                 <span className="text-[14px] font-semibold text-navy-900">{formatCurrency(sale.total)}</span>
                 <Badge tone={METHOD_TONE[sale.method]}>{methodLabel(sale.method)}</Badge>
               </div>
+              <div className="flex shrink-0 items-center gap-1 border-l border-navy-50 pl-2">
+                <button
+                  onClick={() => setEditTarget(sale)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-navy-50 hover:text-navy-700"
+                  aria-label="Editar"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(sale)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-red-50 hover:text-red-600"
+                  aria-label="Eliminar"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -148,7 +184,7 @@ export default function VentasPage() {
       {/* Tablet/desktop: full table */}
       <Card className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-navy-100 text-xs uppercase tracking-wide text-navy-400">
                 {showDate && <th className="px-4 py-3 font-medium sm:px-6">Fecha</th>}
@@ -156,12 +192,13 @@ export default function VentasPage() {
                 <th className="px-4 py-3 font-medium sm:px-6">Venta</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Método</th>
                 <th className="px-4 py-3 text-right font-medium sm:px-6">Total</th>
+                <th className="px-4 py-3 font-medium sm:px-6" />
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
               {rangeSales.length === 0 ? (
                 <tr>
-                  <td colSpan={showDate ? 5 : 4} className="px-4 py-10 text-center text-navy-400 sm:px-6">
+                  <td colSpan={showDate ? 6 : 5} className="px-4 py-10 text-center text-navy-400 sm:px-6">
                     No hay ventas registradas en este período.
                   </td>
                 </tr>
@@ -179,6 +216,24 @@ export default function VentasPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy-900 sm:px-6">
                       {formatCurrency(sale.total)}
                     </td>
+                    <td className="px-4 py-3 sm:px-6">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setEditTarget(sale)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-navy-50 hover:text-navy-700"
+                          aria-label="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(sale)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-red-50 hover:text-red-600"
+                          aria-label="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -186,6 +241,16 @@ export default function VentasPage() {
           </table>
         </div>
       </Card>
+
+      <SaleEditModal sale={editTarget} products={products} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar venta"
+        description={`¿Eliminar la venta "${deleteTarget?.label}" por ${deleteTarget ? formatCurrency(deleteTarget.total) : ""}? Esta acción actualizará el dashboard, las estadísticas y el cierre de caja.`}
+      />
     </div>
   );
 }

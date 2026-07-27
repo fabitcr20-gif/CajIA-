@@ -32,10 +32,22 @@ interface CajiaState {
   login: () => void;
   logout: () => void;
   addSale: (items: SaleItem[], method: PaymentMethod) => Sale;
+  updateSale: (id: string, items: SaleItem[], method: PaymentMethod) => void;
+  deleteSale: (id: string) => void;
   addProduct: (product: Omit<Product, "id" | "active">) => void;
+  updateProduct: (id: string, partial: Partial<Omit<Product, "id">>) => void;
+  deleteProduct: (id: string) => void;
   updateSettings: (partial: Partial<BusinessSettings>) => void;
   saveReport: (report: SavedReport) => void;
   setHydrated: () => void;
+}
+
+function buildSaleLabel(items: SaleItem[]): string {
+  return items.map((i) => (i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name)).join(" + ");
+}
+
+function saleTotal(items: SaleItem[]): number {
+  return items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 }
 
 let saleIdCounter = 0;
@@ -57,10 +69,6 @@ export const useCajiaStore = create<CajiaState>()(
       addSale: (items, method) => {
         const now = new Date();
         saleIdCounter += 1;
-        const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-        const label = items
-          .map((i) => (i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name))
-          .join(" + ");
         const sale: Sale = {
           id: `manual-${Date.now()}-${saleIdCounter}`,
           date: DEMO_TODAY,
@@ -68,17 +76,37 @@ export const useCajiaStore = create<CajiaState>()(
             now.getMinutes()
           ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`,
           items,
-          total,
+          total: saleTotal(items),
           method,
-          label,
+          label: buildSaleLabel(items),
         };
         set({ sales: [...get().sales, sale] });
         return sale;
       },
 
+      updateSale: (id, items, method) => {
+        set({
+          sales: get().sales.map((s) =>
+            s.id === id ? { ...s, items, method, total: saleTotal(items), label: buildSaleLabel(items) } : s
+          ),
+        });
+      },
+
+      deleteSale: (id) => {
+        set({ sales: get().sales.filter((s) => s.id !== id) });
+      },
+
       addProduct: (product) => {
         const id = `p-custom-${Date.now()}`;
         set({ products: [...get().products, { ...product, id, active: true }] });
+      },
+
+      updateProduct: (id, partial) => {
+        set({ products: get().products.map((p) => (p.id === id ? { ...p, ...partial } : p)) });
+      },
+
+      deleteProduct: (id) => {
+        set({ products: get().products.filter((p) => p.id !== id) });
       },
 
       updateSettings: (partial) => set({ settings: { ...get().settings, ...partial } }),
