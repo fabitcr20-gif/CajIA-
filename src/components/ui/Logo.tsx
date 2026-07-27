@@ -1,23 +1,20 @@
 import clsx from "clsx";
 
 export function Logo({ size = "md", light = false, className }: { size?: "sm" | "md" | "lg"; light?: boolean; className?: string }) {
-  const dims = { sm: "h-7 w-7 text-sm", md: "h-9 w-9 text-base", lg: "h-14 w-14 text-2xl" }[size];
-  const textSize = { sm: "text-base", md: "text-lg", lg: "text-3xl" }[size];
+  const heightClass = { sm: "h-7", md: "h-9", lg: "h-16" }[size];
+
+  const img = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/cajia-logo-full.png" alt="CajIA" className={clsx(heightClass, "w-auto")} />
+  );
+
+  if (!light) {
+    return <div className={clsx("flex items-center", className)}>{img}</div>;
+  }
 
   return (
-    <div className={clsx("flex items-center gap-2.5", className)}>
-      <span
-        className={clsx(
-          "flex items-center justify-center rounded-xl font-bold shrink-0",
-          dims,
-          light ? "bg-white text-navy-800" : "bg-navy-800 text-white"
-        )}
-      >
-        C
-      </span>
-      <span className={clsx("font-semibold tracking-tight", textSize, light ? "text-white" : "text-navy-900")}>
-        CajIA
-      </span>
+    <div className={clsx("inline-flex items-center rounded-xl bg-white px-3 py-2 shadow-sm", className)}>
+      {img}
     </div>
   );
 }

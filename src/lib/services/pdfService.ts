@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { BusinessSettings, DailyClosure, MonthlyClosure } from "@/lib/types";
 import { dateLabel, formatCurrency } from "@/lib/selectors";
 import { DEJAVU_SANS_BOLD_BASE64, DEJAVU_SANS_REGULAR_BASE64 } from "@/lib/services/fonts";
+import { CAJIA_LOGO_ASPECT_RATIO, CAJIA_LOGO_PNG_BASE64 } from "@/lib/services/logoAsset";
 
 const NAVY: [number, number, number] = [30, 42, 71];
 const NAVY_SOFT: [number, number, number] = [90, 108, 145];
@@ -27,15 +28,9 @@ function stripEmoji(text: string): string {
 }
 
 function drawLogo(doc: jsPDF, x: number, y: number) {
-  doc.setFillColor(...NAVY);
-  doc.roundedRect(x, y, 12, 12, 3, 3, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont(FONT, "bold");
-  doc.setFontSize(13);
-  doc.text("C", x + 6, y + 8.6, { align: "center" });
-  doc.setTextColor(...NAVY);
-  doc.setFontSize(15);
-  doc.text("CajIA", x + 16, y + 8.6);
+  const height = 11;
+  const width = height * CAJIA_LOGO_ASPECT_RATIO;
+  doc.addImage(CAJIA_LOGO_PNG_BASE64, "PNG", x, y, width, height);
 }
 
 function drawHeader(doc: jsPDF, settings: BusinessSettings, title: string) {
