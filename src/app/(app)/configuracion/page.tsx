@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Banknote, CreditCard, Smartphone } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -33,6 +33,13 @@ export default function ConfiguracionPage() {
 
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+    };
+  }, []);
 
   function togglePaymentMethod(method: PaymentMethod) {
     setForm((prev) => {
@@ -45,7 +52,8 @@ export default function ConfiguracionPage() {
   function handleSave() {
     updateSettings(form);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+    savedTimeoutRef.current = setTimeout(() => setSaved(false), 2500);
   }
 
   return (

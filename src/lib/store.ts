@@ -35,7 +35,6 @@ interface CajiaState {
   addProduct: (product: Omit<Product, "id" | "active">) => void;
   updateSettings: (partial: Partial<BusinessSettings>) => void;
   saveReport: (report: SavedReport) => void;
-  resetDemoData: () => void;
   setHydrated: () => void;
 }
 
@@ -85,16 +84,6 @@ export const useCajiaStore = create<CajiaState>()(
       updateSettings: (partial) => set({ settings: { ...get().settings, ...partial } }),
 
       saveReport: (report) => set({ savedReports: [report, ...get().savedReports] }),
-
-      resetDemoData: () => {
-        const sales = generateDemoSales();
-        set({
-          products: INITIAL_PRODUCTS,
-          sales,
-          savedReports: buildSeedReports(sales),
-          settings: DEFAULT_SETTINGS,
-        });
-      },
 
       setHydrated: () => set({ hasHydrated: true }),
     }),

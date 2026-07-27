@@ -24,12 +24,6 @@ export function shortDateLabel(dateStr: string): string {
   return dt.toLocaleDateString("es-CR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
 }
 
-export function weekdayLabel(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.toLocaleDateString("es-CR", { weekday: "long", timeZone: "UTC" });
-}
-
 export function timeLabel(timestamp: string): string {
   const dt = new Date(timestamp);
   return dt.toLocaleTimeString("es-CR", { hour: "numeric", minute: "2-digit", hour12: true });

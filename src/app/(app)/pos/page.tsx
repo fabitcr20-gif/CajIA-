@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Banknote, CreditCard, Minus, Plus, Smartphone, Trash2, CheckCircle2 } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -23,6 +23,7 @@ export default function PosPage() {
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [confirmation, setConfirmation] = useState<{ total: number } | null>(null);
+  const submittingRef = useRef(false);
 
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
@@ -51,7 +52,8 @@ export default function PosPage() {
   }
 
   function registerSale() {
-    if (cart.length === 0 || !method) return;
+    if (cart.length === 0 || !method || submittingRef.current) return;
+    submittingRef.current = true;
     addSale(cart, method);
     setConfirmation({ total });
     setCart([]);
@@ -59,6 +61,7 @@ export default function PosPage() {
   }
 
   function startNewSale() {
+    submittingRef.current = false;
     setConfirmation(null);
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   Banknote,
@@ -21,6 +21,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { Spinner } from "@/components/ui/Spinner";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import {
   breakdownByMethod,
   dateLabel,
@@ -48,21 +49,45 @@ export default function CierresPage() {
   const [generating, setGenerating] = useState(false);
   const [saved, setSaved] = useState(false);
   const [driveStatus, setDriveStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [pdfError, setPdfError] = useState(false);
+  const [generateError, setGenerateError] = useState(false);
+  const generateRef = useRef(false);
+  const pdfRef = useRef(false);
+  const saveRef = useRef(false);
+  const driveRef = useRef(false);
 
   async function handleGenerate() {
+    if (generateRef.current) return;
+    generateRef.current = true;
     setGenerating(true);
-    const result = await buildDailyClosure(sales, today);
-    setClosure(result);
-    setGenerating(false);
+    setGenerateError(false);
+    try {
+      const result = await buildDailyClosure(sales, today);
+      setClosure(result);
+    } catch {
+      setGenerateError(true);
+    } finally {
+      setGenerating(false);
+      generateRef.current = false;
+    }
   }
 
   function handleDownloadPdf() {
-    if (!closure) return;
-    generateDailyClosurePDF(closure, settings);
+    if (!closure || pdfRef.current) return;
+    pdfRef.current = true;
+    setPdfError(false);
+    try {
+      generateDailyClosurePDF(closure, settings);
+    } catch {
+      setPdfError(true);
+    } finally {
+      pdfRef.current = false;
+    }
   }
 
   function handleSaveReport() {
-    if (!closure) return;
+    if (!closure || saveRef.current || saved) return;
+    saveRef.current = true;
     const report: SavedReport = {
       id: `report-diario-${closure.date}-${Date.now()}`,
       type: "diario",
@@ -73,12 +98,21 @@ export default function CierresPage() {
     };
     saveReport(report);
     setSaved(true);
+    saveRef.current = false;
   }
 
   async function handleExportDrive() {
+    if (driveRef.current) return;
+    driveRef.current = true;
     setDriveStatus("loading");
-    await simulateExportToDrive(`Cierre diario — ${dateLabel(today)}`);
-    setDriveStatus("done");
+    try {
+      await simulateExportToDrive(`Cierre diario — ${dateLabel(today)}`);
+      setDriveStatus("done");
+    } catch {
+      setDriveStatus("idle");
+    } finally {
+      driveRef.current = false;
+    }
   }
 
   return (
@@ -111,15 +145,18 @@ export default function CierresPage() {
           </p>
 
           {!closure && (
-            <Button size="lg" fullWidth className="mt-5" onClick={handleGenerate} disabled={generating}>
-              {generating ? (
-                <>
-                  <Spinner className="h-4 w-4" /> Generando cierre...
-                </>
-              ) : (
-                "Generar cierre de caja"
-              )}
-            </Button>
+            <>
+              <Button size="lg" fullWidth className="mt-5" onClick={handleGenerate} disabled={generating}>
+                {generating ? (
+                  <>
+                    <Spinner className="h-4 w-4" /> Generando cierre...
+                  </>
+                ) : (
+                  "Generar cierre de caja"
+                )}
+              </Button>
+              {generateError && <ErrorNotice />}
+            </>
           )}
         </CardBody>
       </Card>
@@ -163,8 +200,8 @@ export default function CierresPage() {
                 <Button variant="outline" onClick={handleDownloadPdf} className="gap-2">
                   <Download className="h-4 w-4" /> Descargar PDF
                 </Button>
-                <Button variant="outline" onClick={handleSaveReport} className="gap-2">
-                  <Save className="h-4 w-4" /> Guardar en CajIA
+                <Button variant="outline" onClick={handleSaveReport} disabled={saved} className="gap-2">
+                  <Save className="h-4 w-4" /> {saved ? "Guardado ✓" : "Guardar en CajIA"}
                 </Button>
                 <Button
                   variant="outline"
@@ -176,6 +213,8 @@ export default function CierresPage() {
                   Exportar a Google Drive
                 </Button>
               </div>
+
+              {pdfError && <ErrorNotice message="No pudimos generar el PDF. Intenta nuevamente." />}
 
               {saved && (
                 <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

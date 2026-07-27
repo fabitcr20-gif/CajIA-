@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -22,6 +22,7 @@ export default function ProductosPage() {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [emoji, setEmoji] = useState(EMOJI_OPTIONS[0]);
+  const submittingRef = useRef(false);
 
   const salesByProduct = useMemo(() => {
     const map = new Map<string, number>();
@@ -35,14 +36,17 @@ export default function ProductosPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     const parsedPrice = Number(price);
     if (!name.trim() || !parsedPrice || parsedPrice <= 0) return;
+    submittingRef.current = true;
     addProduct({ name: name.trim(), price: parsedPrice, category: category.trim() || "General", emoji });
     setName("");
     setPrice("");
     setCategory("");
     setEmoji(EMOJI_OPTIONS[0]);
     setOpen(false);
+    submittingRef.current = false;
   }
 
   return (
@@ -57,7 +61,7 @@ export default function ProductosPage() {
       />
 
       {/* Mobile: stacked list */}
-      <Card className="divide-y divide-navy-50 overflow-hidden sm:hidden">
+      <Card className="divide-y divide-navy-50 overflow-hidden lg:hidden">
         {products.map((product) => (
           <div key={product.id} className="flex items-center gap-3 px-4 py-3.5">
             <span className="text-2xl">{product.emoji}</span>
@@ -76,7 +80,7 @@ export default function ProductosPage() {
       </Card>
 
       {/* Tablet/desktop: full table */}
-      <Card className="hidden overflow-hidden sm:block">
+      <Card className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-left text-sm">
             <thead>

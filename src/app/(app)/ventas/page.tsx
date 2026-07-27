@@ -123,7 +123,7 @@ export default function VentasPage() {
       </div>
 
       {/* Mobile: stacked list (avoids squeezing 4-5 columns into a narrow table) */}
-      <Card className="divide-y divide-navy-50 overflow-hidden sm:hidden">
+      <Card className="divide-y divide-navy-50 overflow-hidden lg:hidden">
         {rangeSales.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-navy-400">No hay ventas registradas en este período.</p>
         ) : (
@@ -146,7 +146,7 @@ export default function VentasPage() {
       </Card>
 
       {/* Tablet/desktop: full table */}
-      <Card className="hidden overflow-hidden sm:block">
+      <Card className="hidden overflow-hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
