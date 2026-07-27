@@ -113,7 +113,7 @@ function drawParagraph(doc: jsPDF, text: string, y: number): number {
   return cursor;
 }
 
-export function generateDailyClosurePDF(closure: DailyClosure, settings: BusinessSettings) {
+function buildDailyClosureDoc(closure: DailyClosure, settings: BusinessSettings): jsPDF {
   const doc = new jsPDF();
   registerFont(doc);
   drawHeader(doc, settings, "Informe de cierre de caja");
@@ -147,10 +147,28 @@ export function generateDailyClosurePDF(closure: DailyClosure, settings: Busines
   y = drawParagraph(doc, stripEmoji(closure.aiAnalysis), y);
 
   drawFooter(doc);
-  doc.save(`CajIA-cierre-diario-${closure.date}.pdf`);
+  return doc;
 }
 
-export function generateMonthlyClosurePDF(closure: MonthlyClosure, settings: BusinessSettings) {
+export function dailyClosurePdfFileName(closure: DailyClosure): string {
+  return `CajIA-cierre-diario-${closure.date}.pdf`;
+}
+
+// Used by the "Descargar PDF" button — triggers a browser download.
+export function generateDailyClosurePDF(closure: DailyClosure, settings: BusinessSettings) {
+  const doc = buildDailyClosureDoc(closure, settings);
+  doc.save(dailyClosurePdfFileName(closure));
+}
+
+// Used by the Google Drive export flow — same document, returned as bytes
+// instead of triggering a download, so the two paths always produce an
+// identical PDF.
+export function dailyClosurePdfBlob(closure: DailyClosure, settings: BusinessSettings): Blob {
+  const doc = buildDailyClosureDoc(closure, settings);
+  return doc.output("blob");
+}
+
+function buildMonthlyClosureDoc(closure: MonthlyClosure, settings: BusinessSettings): jsPDF {
   const doc = new jsPDF();
   registerFont(doc);
   drawHeader(doc, settings, "Informe de cierre mensual");
@@ -182,5 +200,21 @@ export function generateMonthlyClosurePDF(closure: MonthlyClosure, settings: Bus
   y = drawParagraph(doc, stripEmoji(closure.aiAnalysis), y);
 
   drawFooter(doc);
-  doc.save(`CajIA-cierre-mensual-${closure.month}.pdf`);
+  return doc;
+}
+
+export function monthlyClosurePdfFileName(closure: MonthlyClosure): string {
+  return `CajIA-cierre-mensual-${closure.month}.pdf`;
+}
+
+// Used by the "Generar informe PDF" button — triggers a browser download.
+export function generateMonthlyClosurePDF(closure: MonthlyClosure, settings: BusinessSettings) {
+  const doc = buildMonthlyClosureDoc(closure, settings);
+  doc.save(monthlyClosurePdfFileName(closure));
+}
+
+// Used by the Google Drive export flow — same document, returned as bytes.
+export function monthlyClosurePdfBlob(closure: MonthlyClosure, settings: BusinessSettings): Blob {
+  const doc = buildMonthlyClosureDoc(closure, settings);
+  return doc.output("blob");
 }

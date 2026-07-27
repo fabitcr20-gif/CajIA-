@@ -1,12 +1,21 @@
 "use client";
 
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Banknote, CreditCard, Smartphone } from "lucide-react";
+import { CheckCircle2, Banknote, CreditCard, Smartphone, CloudUpload, Unplug } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Spinner } from "@/components/ui/Spinner";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { PaymentMethod } from "@/lib/types";
+import {
+  describeGoogleOAuthError,
+  disconnectGoogleDrive,
+  getDriveStatus,
+  getGoogleConnectUrl,
+} from "@/lib/services/driveService";
 import clsx from "clsx";
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
@@ -35,11 +44,52 @@ export default function ConfiguracionPage() {
   const [saved, setSaved] = useState(false);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [driveConnected, setDriveConnected] = useState<boolean | null>(null);
+  const [driveBusy, setDriveBusy] = useState(false);
+  const [driveMessage, setDriveMessage] = useState<string | null>(null);
+  const driveActionRef = useRef(false);
+
   useEffect(() => {
     return () => {
       if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    getDriveStatus().then((s) => setDriveConnected(s.connected));
+
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get("drive_error");
+    const connectedFlag = params.get("drive_connected");
+    if (errorCode || connectedFlag) {
+      // One-time sync from the OAuth redirect URL (external browser API), not from React state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (connectedFlag) setDriveConnected(true);
+      if (errorCode) setDriveMessage(describeGoogleOAuthError(errorCode));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  function handleConnectDrive() {
+    window.location.href = getGoogleConnectUrl("/configuracion");
+  }
+
+  async function handleDisconnectDrive() {
+    if (driveActionRef.current) return;
+    driveActionRef.current = true;
+    setDriveBusy(true);
+    setDriveMessage(null);
+    try {
+      const ok = await disconnectGoogleDrive();
+      setDriveConnected(!ok ? driveConnected : false);
+      if (!ok) setDriveMessage("No pudimos desconectar Google Drive. Intenta nuevamente.");
+    } catch {
+      setDriveMessage("No pudimos desconectar Google Drive. Intenta nuevamente.");
+    } finally {
+      setDriveBusy(false);
+      driveActionRef.current = false;
+    }
+  }
 
   function togglePaymentMethod(method: PaymentMethod) {
     setForm((prev) => {
@@ -152,6 +202,49 @@ export default function ConfiguracionPage() {
                 className={inputClass}
               />
             </Field>
+          </CardBody>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Integraciones</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <div className="flex flex-col gap-3 rounded-xl border border-navy-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-600">
+                  <CloudUpload className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[15px] font-medium text-navy-900">Google Drive</p>
+                    {driveConnected === null ? (
+                      <Badge tone="neutral">Verificando…</Badge>
+                    ) : driveConnected ? (
+                      <Badge tone="success">Conectado</Badge>
+                    ) : (
+                      <Badge tone="neutral">No conectado</Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm text-navy-500">
+                    Permite exportar tus cierres de caja directamente a tu Google Drive.
+                  </p>
+                </div>
+              </div>
+
+              {driveConnected ? (
+                <Button variant="outline" size="sm" onClick={handleDisconnectDrive} disabled={driveBusy} className="gap-1.5">
+                  {driveBusy ? <Spinner className="h-3.5 w-3.5" /> : <Unplug className="h-3.5 w-3.5" />}
+                  Desconectar
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={handleConnectDrive} disabled={driveConnected === null} className="gap-1.5">
+                  <CloudUpload className="h-3.5 w-3.5" />
+                  Conectar con Google
+                </Button>
+              )}
+            </div>
+            {driveMessage && <ErrorNotice message={driveMessage} />}
           </CardBody>
         </Card>
       </div>

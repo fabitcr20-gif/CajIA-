@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Banknote,
@@ -11,6 +11,7 @@ import {
   Save,
   CloudUpload,
   CheckCircle2,
+  ExternalLink,
   Wallet,
   Receipt,
   Calculator,
@@ -31,8 +32,8 @@ import {
   todayKey,
 } from "@/lib/selectors";
 import { buildDailyClosure } from "@/lib/services/closureService";
-import { generateDailyClosurePDF } from "@/lib/services/pdfService";
-import { simulateExportToDrive } from "@/lib/services/driveService";
+import { dailyClosurePdfBlob, dailyClosurePdfFileName, generateDailyClosurePDF } from "@/lib/services/pdfService";
+import { describeGoogleOAuthError, exportPdfToDrive, getDriveStatus, getGoogleConnectUrl } from "@/lib/services/driveService";
 import { DailyClosure, SavedReport } from "@/lib/types";
 
 export default function CierresPage() {
@@ -48,13 +49,32 @@ export default function CierresPage() {
   const [closure, setClosure] = useState<DailyClosure | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [driveStatus, setDriveStatus] = useState<"idle" | "loading" | "done">("idle");
   const [pdfError, setPdfError] = useState(false);
   const [generateError, setGenerateError] = useState(false);
   const generateRef = useRef(false);
   const pdfRef = useRef(false);
   const saveRef = useRef(false);
   const driveRef = useRef(false);
+
+  const [driveConnected, setDriveConnected] = useState<boolean | null>(null);
+  const [driveStatus, setDriveStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const [driveResult, setDriveResult] = useState<{ webViewLink: string } | null>(null);
+
+  useEffect(() => {
+    getDriveStatus().then((s) => setDriveConnected(s.connected));
+
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get("drive_error");
+    const connectedFlag = params.get("drive_connected");
+    if (errorCode || connectedFlag) {
+      // One-time sync from the OAuth redirect URL (external browser API), not from React state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (connectedFlag) setDriveConnected(true);
+      if (errorCode) setDriveError(describeGoogleOAuthError(errorCode));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   async function handleGenerate() {
     if (generateRef.current) return;
@@ -102,13 +122,32 @@ export default function CierresPage() {
   }
 
   async function handleExportDrive() {
-    if (driveRef.current) return;
+    if (driveRef.current || !closure) return;
+
+    if (!driveConnected) {
+      window.location.href = getGoogleConnectUrl("/cierres");
+      return;
+    }
+
     driveRef.current = true;
     setDriveStatus("loading");
+    setDriveError(null);
     try {
-      await simulateExportToDrive(`Cierre diario — ${dateLabel(today)}`);
-      setDriveStatus("done");
+      const blob = dailyClosurePdfBlob(closure, settings);
+      const fileName = dailyClosurePdfFileName(closure);
+      const result = await exportPdfToDrive(blob, fileName);
+      if (result.success) {
+        setDriveResult({ webViewLink: result.webViewLink });
+        setDriveStatus("done");
+      } else {
+        if (result.error === "not_connected" || result.error === "reauth_required") {
+          setDriveConnected(false);
+        }
+        setDriveError(result.message);
+        setDriveStatus("idle");
+      }
     } catch {
+      setDriveError("No pudimos subir el informe a Google Drive. Intenta nuevamente.");
       setDriveStatus("idle");
     } finally {
       driveRef.current = false;
@@ -128,6 +167,8 @@ export default function CierresPage() {
           Mensual
         </Link>
       </div>
+
+      {driveError && <ErrorNotice message={driveError} className="mb-5" />}
 
       <Card>
         <CardHeader>
@@ -206,11 +247,11 @@ export default function CierresPage() {
                 <Button
                   variant="outline"
                   onClick={handleExportDrive}
-                  disabled={driveStatus === "loading"}
+                  disabled={driveStatus === "loading" || driveConnected === null}
                   className="gap-2"
                 >
                   {driveStatus === "loading" ? <Spinner className="h-4 w-4" /> : <CloudUpload className="h-4 w-4" />}
-                  Exportar a Google Drive
+                  {driveConnected === false ? "Conectar con Google" : "Exportar a Google Drive"}
                 </Button>
               </div>
 
@@ -229,14 +270,19 @@ export default function CierresPage() {
                 </div>
               )}
 
-              {driveStatus === "done" && (
+              {driveStatus === "done" && driveResult && (
                 <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-accent-50 px-4 py-3 text-sm text-accent-800">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-semibold">Informe preparado para Google Drive ✓</p>
-                    <p className="mt-0.5 text-accent-700">
-                      En la versión completa, este informe se guardará directamente en tu carpeta de Google Drive.
-                    </p>
+                    <p className="font-semibold">Informe subido a Google Drive ✓</p>
+                    <a
+                      href={driveResult.webViewLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-0.5 inline-flex items-center gap-1 font-medium text-accent-700 underline underline-offset-2"
+                    >
+                      Ver archivo en Drive <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                   </div>
                 </div>
               )}
