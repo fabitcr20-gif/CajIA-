@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorNotice } from "@/components/ui/ErrorNotice";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { PaymentMethod } from "@/lib/types";
+import { BUSINESS_PRESETS, BusinessPresetId } from "@/lib/data/businessPresets";
 import {
   describeGoogleOAuthError,
   disconnectGoogleDrive,
@@ -17,6 +19,10 @@ import {
   getGoogleConnectUrl,
 } from "@/lib/services/driveService";
 import clsx from "clsx";
+
+const PRESET_OPTIONS: { value: BusinessPresetId; label: string }[] = (
+  Object.keys(BUSINESS_PRESETS) as BusinessPresetId[]
+).map((id) => ({ value: id, label: BUSINESS_PRESETS[id].label }));
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { value: "efectivo", label: "Efectivo", icon: Banknote },
@@ -39,10 +45,13 @@ const inputClass =
 export default function ConfiguracionPage() {
   const settings = useCajiaStore((s) => s.settings);
   const updateSettings = useCajiaStore((s) => s.updateSettings);
+  const businessPresetId = useCajiaStore((s) => s.businessPresetId);
+  const applyBusinessPreset = useCajiaStore((s) => s.applyBusinessPreset);
 
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingPreset, setPendingPreset] = useState<BusinessPresetId | null>(null);
 
   const [driveConnected, setDriveConnected] = useState<boolean | null>(null);
   const [driveBusy, setDriveBusy] = useState(false);
@@ -106,6 +115,19 @@ export default function ConfiguracionPage() {
     savedTimeoutRef.current = setTimeout(() => setSaved(false), 2500);
   }
 
+  function handlePresetChange(id: BusinessPresetId) {
+    if (id === businessPresetId) return;
+    setPendingPreset(id);
+  }
+
+  function confirmPresetChange() {
+    if (pendingPreset) {
+      applyBusinessPreset(pendingPreset);
+      setForm(useCajiaStore.getState().settings);
+    }
+    setPendingPreset(null);
+  }
+
   return (
     <div className="animate-fade-in pb-6">
       <PageHeader title="Configuración" subtitle="Datos generales de tu negocio" />
@@ -129,6 +151,22 @@ export default function ConfiguracionPage() {
                 onChange={(e) => setForm({ ...form, businessType: e.target.value })}
                 className={inputClass}
               />
+            </Field>
+            <Field label="Plantilla de datos de ejemplo">
+              <select
+                value={businessPresetId}
+                onChange={(e) => handlePresetChange(e.target.value as BusinessPresetId)}
+                className={inputClass}
+              >
+                {PRESET_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-navy-400">
+                Cambiar la plantilla reemplaza los productos y ventas de ejemplo actuales por datos de ese tipo de negocio.
+              </p>
             </Field>
             <Field label="Moneda">
               <select
@@ -259,6 +297,17 @@ export default function ConfiguracionPage() {
           </span>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!pendingPreset}
+        onClose={() => setPendingPreset(null)}
+        onConfirm={confirmPresetChange}
+        title="Cambiar plantilla de negocio"
+        description={`Esto reemplazará los productos y las ventas de ejemplo actuales por datos de demostración para "${
+          pendingPreset ? BUSINESS_PRESETS[pendingPreset].label : ""
+        }". Cualquier producto o venta que hayas agregado o editado se perderá. ¿Deseas continuar?`}
+        confirmLabel="Cambiar"
+      />
     </div>
   );
 }

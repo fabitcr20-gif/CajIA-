@@ -9,8 +9,9 @@ import {
   SavedReport,
 } from "@/lib/types";
 import { INITIAL_PRODUCTS } from "@/lib/data/products";
-import { generateDemoSales, DEMO_TODAY } from "@/lib/data/demoSales";
+import { generateDemoSales, generateSalesForProducts, DEMO_TODAY } from "@/lib/data/demoSales";
 import { buildSeedReports } from "@/lib/data/seedReports";
+import { BUSINESS_PRESETS, BusinessPresetId, PRESET_SEEDS } from "@/lib/data/businessPresets";
 
 const DEFAULT_SETTINGS: BusinessSettings = {
   businessName: "Café El Alumbre",
@@ -29,6 +30,7 @@ interface CajiaState {
   sales: Sale[];
   savedReports: SavedReport[];
   settings: BusinessSettings;
+  businessPresetId: BusinessPresetId;
   login: () => void;
   logout: () => void;
   addSale: (items: SaleItem[], method: PaymentMethod) => Sale;
@@ -38,6 +40,7 @@ interface CajiaState {
   updateProduct: (id: string, partial: Partial<Omit<Product, "id">>) => void;
   deleteProduct: (id: string) => void;
   updateSettings: (partial: Partial<BusinessSettings>) => void;
+  applyBusinessPreset: (presetId: BusinessPresetId) => void;
   saveReport: (report: SavedReport) => void;
   setHydrated: () => void;
 }
@@ -62,6 +65,7 @@ export const useCajiaStore = create<CajiaState>()(
       sales: initialSales,
       savedReports: buildSeedReports(initialSales),
       settings: DEFAULT_SETTINGS,
+      businessPresetId: "cafeteria",
 
       login: () => set({ isAuthenticated: true }),
       logout: () => set({ isAuthenticated: false }),
@@ -111,6 +115,30 @@ export const useCajiaStore = create<CajiaState>()(
 
       updateSettings: (partial) => set({ settings: { ...get().settings, ...partial } }),
 
+      applyBusinessPreset: (presetId) => {
+        const preset = BUSINESS_PRESETS[presetId];
+        const products: Product[] =
+          presetId === "cafeteria"
+            ? INITIAL_PRODUCTS
+            : preset.products.map((p, i) => ({ ...p, id: `${presetId}-p${i + 1}`, active: true }));
+        const sales =
+          presetId === "cafeteria" ? generateDemoSales() : generateSalesForProducts(products, PRESET_SEEDS[presetId]);
+        set({
+          businessPresetId: presetId,
+          products,
+          sales,
+          savedReports: buildSeedReports(sales),
+          settings: {
+            ...get().settings,
+            businessName: preset.businessName,
+            businessType: preset.businessType,
+            legalId: preset.legalId,
+            phone: preset.phone,
+            email: preset.email,
+          },
+        });
+      },
+
       saveReport: (report) => set({ savedReports: [report, ...get().savedReports] }),
 
       setHydrated: () => set({ hasHydrated: true }),
@@ -123,6 +151,7 @@ export const useCajiaStore = create<CajiaState>()(
         sales: state.sales,
         savedReports: state.savedReports,
         settings: state.settings,
+        businessPresetId: state.businessPresetId,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
