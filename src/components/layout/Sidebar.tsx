@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/nav";
+import { buildNavItems } from "@/lib/nav";
 import { Logo } from "@/components/ui/Logo";
 import { useCajiaStore } from "@/lib/store";
+import { BUSINESS_PRESETS } from "@/lib/data/businessPresets";
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const settings = useCajiaStore((s) => s.settings);
+  const businessPresetId = useCajiaStore((s) => s.businessPresetId);
   const logout = useCajiaStore((s) => s.logout);
+  const NAV_ITEMS = buildNavItems(BUSINESS_PRESETS[businessPresetId].productsLabel);
 
   return (
     <aside className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:border-r md:border-navy-800/60 md:bg-navy-900">

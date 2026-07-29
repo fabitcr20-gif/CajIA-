@@ -31,6 +31,7 @@ interface CajiaState {
   savedReports: SavedReport[];
   settings: BusinessSettings;
   businessPresetId: BusinessPresetId;
+  onboardingComplete: boolean;
   login: () => void;
   logout: () => void;
   addSale: (items: SaleItem[], method: PaymentMethod) => Sale;
@@ -66,6 +67,7 @@ export const useCajiaStore = create<CajiaState>()(
       savedReports: buildSeedReports(initialSales),
       settings: DEFAULT_SETTINGS,
       businessPresetId: "cafeteria",
+      onboardingComplete: false,
 
       login: () => set({ isAuthenticated: true }),
       logout: () => set({ isAuthenticated: false }),
@@ -125,6 +127,7 @@ export const useCajiaStore = create<CajiaState>()(
           presetId === "cafeteria" ? generateDemoSales() : generateSalesForProducts(products, PRESET_SEEDS[presetId]);
         set({
           businessPresetId: presetId,
+          onboardingComplete: true,
           products,
           sales,
           savedReports: buildSeedReports(sales),
@@ -152,6 +155,7 @@ export const useCajiaStore = create<CajiaState>()(
         savedReports: state.savedReports,
         settings: state.settings,
         businessPresetId: state.businessPresetId,
+        onboardingComplete: state.onboardingComplete,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();

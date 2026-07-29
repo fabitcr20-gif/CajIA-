@@ -13,7 +13,8 @@ export default function LoginPage() {
 
   const handleEnter = () => {
     login();
-    router.push("/dashboard");
+    const onboardingComplete = useCajiaStore.getState().onboardingComplete;
+    router.push(onboardingComplete ? "/dashboard" : "/onboarding");
   };
 
   return (

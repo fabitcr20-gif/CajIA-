@@ -11,14 +11,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const hasHydrated = useCajiaStore((s) => s.hasHydrated);
   const isAuthenticated = useCajiaStore((s) => s.isAuthenticated);
+  const onboardingComplete = useCajiaStore((s) => s.onboardingComplete);
 
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
+    if (!hasHydrated) return;
+    if (!isAuthenticated) {
       router.replace("/");
+    } else if (!onboardingComplete) {
+      router.replace("/onboarding");
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, onboardingComplete, router]);
 
-  if (!hasHydrated || !isAuthenticated) {
+  if (!hasHydrated || !isAuthenticated || !onboardingComplete) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-navy-50">
         <Spinner className="h-7 w-7 text-navy-400" />

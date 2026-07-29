@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { formatCurrency } from "@/lib/selectors";
 import { Product } from "@/lib/types";
+import { BUSINESS_PRESETS } from "@/lib/data/businessPresets";
 
 const EMOJI_OPTIONS = ["☕", "🥐", "🍰", "🥤", "🍪", "🥪", "🧃", "🍫"];
 
@@ -20,6 +21,11 @@ export default function ProductosPage() {
   const addProduct = useCajiaStore((s) => s.addProduct);
   const updateProduct = useCajiaStore((s) => s.updateProduct);
   const deleteProduct = useCajiaStore((s) => s.deleteProduct);
+  const businessPresetId = useCajiaStore((s) => s.businessPresetId);
+  const preset = BUSINESS_PRESETS[businessPresetId];
+  const itemLabel = preset.productsLabel; // e.g. "Productos" or "Servicios"
+  const itemSingular = preset.productsLabelSingular; // e.g. "producto" or "servicio"
+  const itemSingularCap = itemSingular.charAt(0).toUpperCase() + itemSingular.slice(1);
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,10 +91,10 @@ export default function ProductosPage() {
   return (
     <div className="animate-fade-in pb-6">
       <PageHeader
-        title="Productos"
+        title={itemLabel}
         actions={
           <Button onClick={openAddModal} className="gap-2">
-            <Plus className="h-4 w-4" /> Agregar producto
+            <Plus className="h-4 w-4" /> Agregar {itemSingular}
           </Button>
         }
       />
@@ -101,7 +107,7 @@ export default function ProductosPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-medium text-navy-900">{product.name}</p>
               <p className="text-xs text-navy-400">
-                {product.category} · {salesByProduct.get(product.name) ?? 0} unidades vendidas
+                {product.category} · {salesByProduct.get(product.name) ?? 0} ventas
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
@@ -134,7 +140,7 @@ export default function ProductosPage() {
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead>
               <tr className="border-b border-navy-100 text-xs uppercase tracking-wide text-navy-400">
-                <th className="px-4 py-3 font-medium sm:px-6">Producto</th>
+                <th className="px-4 py-3 font-medium sm:px-6">{itemSingularCap}</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Categoría</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Precio</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Ventas</th>
@@ -155,7 +161,7 @@ export default function ProductosPage() {
                   <td className="whitespace-nowrap px-4 py-3 font-medium text-navy-900 sm:px-6">
                     {formatCurrency(product.price)}
                   </td>
-                  <td className="px-4 py-3 text-navy-500 sm:px-6">{salesByProduct.get(product.name) ?? 0} unidades</td>
+                  <td className="px-4 py-3 text-navy-500 sm:px-6">{salesByProduct.get(product.name) ?? 0} ventas</td>
                   <td className="px-4 py-3 sm:px-6">
                     <Badge tone={product.active ? "success" : "neutral"}>{product.active ? "Activo" : "Inactivo"}</Badge>
                   </td>
@@ -184,7 +190,7 @@ export default function ProductosPage() {
         </div>
       </Card>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editingId ? "Editar producto" : "Agregar producto"}>
+      <Modal open={open} onClose={() => setOpen(false)} title={editingId ? `Editar ${itemSingular}` : `Agregar ${itemSingular}`}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-navy-700">Nombre</label>
@@ -243,11 +249,11 @@ export default function ProductosPage() {
                 onChange={(e) => setActive(e.target.checked)}
                 className="h-4 w-4 rounded border-navy-300 text-accent-600 focus:ring-accent-400"
               />
-              <span className="text-sm text-navy-700">Producto activo (visible en Nueva venta)</span>
+              <span className="text-sm text-navy-700">{itemSingularCap} activo (visible en Nueva venta)</span>
             </label>
           )}
           <Button type="submit" fullWidth size="lg" className="mt-2">
-            {editingId ? "Guardar cambios" : "Guardar producto"}
+            {editingId ? "Guardar cambios" : `Guardar ${itemSingular}`}
           </Button>
         </form>
       </Modal>
@@ -256,8 +262,8 @@ export default function ProductosPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Eliminar producto"
-        description={`¿Eliminar "${deleteTarget?.name}"? Las ventas ya registradas con este producto no se verán afectadas.`}
+        title={`Eliminar ${itemSingular}`}
+        description={`¿Eliminar "${deleteTarget?.name}"? Las ventas ya registradas con este ${itemSingular} no se verán afectadas.`}
       />
     </div>
   );

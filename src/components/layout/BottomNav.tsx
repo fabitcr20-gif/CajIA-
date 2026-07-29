@@ -4,11 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Receipt, Plus, Wallet, Menu, X } from "lucide-react";
-import { MOBILE_MORE_ITEMS } from "@/lib/nav";
+import { buildMobileMoreItems } from "@/lib/nav";
+import { useCajiaStore } from "@/lib/store";
+import { BUSINESS_PRESETS } from "@/lib/data/businessPresets";
 
 export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const businessPresetId = useCajiaStore((s) => s.businessPresetId);
+  const MOBILE_MORE_ITEMS = buildMobileMoreItems(BUSINESS_PRESETS[businessPresetId].productsLabel);
 
   const isActive = (href: string) => pathname === href;
 
