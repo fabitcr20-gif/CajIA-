@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight, Coffee } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { useCajiaStore } from "@/lib/store";
@@ -9,7 +9,6 @@ import { useCajiaStore } from "@/lib/store";
 export default function LoginPage() {
   const router = useRouter();
   const login = useCajiaStore((s) => s.login);
-  const settings = useCajiaStore((s) => s.settings);
 
   const handleEnter = () => {
     login();
@@ -45,20 +44,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="mt-7 flex items-center gap-3 rounded-2xl border border-navy-100 bg-navy-50 px-4 py-3.5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy-800 text-white">
-              <Coffee className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold text-navy-900">{settings.businessName}</p>
-              <p className="truncate text-sm text-navy-500">{settings.businessType}</p>
-            </div>
-            <span className="ml-auto shrink-0 rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700">
-              Demo
-            </span>
-          </div>
-
-          <Button onClick={handleEnter} size="lg" fullWidth className="mt-6">
+          <Button onClick={handleEnter} size="lg" fullWidth className="mt-7">
             Entrar al demo
             <ArrowRight className="h-[18px] w-[18px]" />
           </Button>
