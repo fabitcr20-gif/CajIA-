@@ -1,29 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, CreditCard, Minus, Plus, Smartphone, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/selectors";
+import { PAYMENT_METHODS, PAYMENT_METHOD_META } from "@/lib/payments";
 import { PaymentMethod, Product, Sale, SaleItem } from "@/lib/types";
-
-const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
-  { value: "efectivo", label: "Efectivo", icon: Banknote },
-  { value: "tarjeta", label: "Tarjeta", icon: CreditCard },
-  { value: "sinpe", label: "SINPE", icon: Smartphone },
-];
 
 interface SaleEditModalProps {
   sale: Sale;
   products: Product[];
+  paymentMethods: PaymentMethod[];
   onClose: () => void;
   onSave: (items: SaleItem[], method: PaymentMethod) => void;
 }
 
-function SaleEditForm({ sale, products, onClose, onSave }: SaleEditModalProps) {
+function SaleEditForm({ sale, products, paymentMethods, onClose, onSave }: SaleEditModalProps) {
   const [items, setItems] = useState<SaleItem[]>(sale.items);
   const [method, setMethod] = useState<PaymentMethod>(sale.method);
+  // Keep the sale's current method selectable even if it was later disabled
+  // in Configuración, so editing an old sale never hides its own value.
+  const availableMethods = PAYMENT_METHODS.filter((m) => paymentMethods.includes(m) || m === sale.method);
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
@@ -120,20 +119,20 @@ function SaleEditForm({ sale, products, onClose, onSave }: SaleEditModalProps) {
       <div>
         <p className="mb-2 text-[13px] font-medium text-navy-500">Método de pago</p>
         <div className="grid grid-cols-3 gap-2">
-          {PAYMENT_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
-            const isActive = method === opt.value;
+          {availableMethods.map((m) => {
+            const Icon = PAYMENT_METHOD_META[m].icon;
+            const isActive = method === m;
             return (
               <button
-                key={opt.value}
-                onClick={() => setMethod(opt.value)}
+                key={m}
+                onClick={() => setMethod(m)}
                 className={clsx(
                   "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-xs font-medium transition-colors",
                   isActive ? "border-accent-500 bg-accent-50 text-accent-700" : "border-navy-100 text-navy-600 hover:bg-navy-50"
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {opt.label}
+                {PAYMENT_METHOD_META[m].label}
               </button>
             );
           })}
@@ -152,10 +151,22 @@ function SaleEditForm({ sale, products, onClose, onSave }: SaleEditModalProps) {
   );
 }
 
-export function SaleEditModal({ sale, products, onClose, onSave }: { sale: Sale | null; products: Product[]; onClose: () => void; onSave: (items: SaleItem[], method: PaymentMethod) => void }) {
+export function SaleEditModal({
+  sale,
+  products,
+  paymentMethods,
+  onClose,
+  onSave,
+}: {
+  sale: Sale | null;
+  products: Product[];
+  paymentMethods: PaymentMethod[];
+  onClose: () => void;
+  onSave: (items: SaleItem[], method: PaymentMethod) => void;
+}) {
   return (
     <Modal open={!!sale} onClose={onClose} title="Editar venta">
-      {sale && <SaleEditForm key={sale.id} sale={sale} products={products} onClose={onClose} onSave={onSave} />}
+      {sale && <SaleEditForm key={sale.id} sale={sale} products={products} paymentMethods={paymentMethods} onClose={onClose} onSave={onSave} />}
     </Modal>
   );
 }

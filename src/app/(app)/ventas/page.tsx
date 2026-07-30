@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, RotateCcw } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { SaleEditModal } from "@/components/sales/SaleEditModal";
 import {
@@ -19,7 +21,8 @@ import {
   timeLabel,
   todayKey,
 } from "@/lib/selectors";
-import { PaymentMethod, Sale } from "@/lib/types";
+import { PAYMENT_STATUS_META } from "@/lib/orders";
+import { PaymentMethod, ReturnType, Sale } from "@/lib/types";
 
 type FilterKey = "hoy" | "ayer" | "semana" | "mes" | "personalizado";
 
@@ -35,11 +38,123 @@ const METHOD_TONE: Record<PaymentMethod, "navy" | "accent" | "warning"> = {
   efectivo: "navy",
   tarjeta: "accent",
   sinpe: "warning",
+  transferencia: "accent",
+  otro: "navy",
 };
+
+const RETURN_TYPE_OPTIONS: { value: ReturnType; label: string }[] = [
+  { value: "producto", label: "Devolución de producto" },
+  { value: "dinero", label: "Devolución de dinero" },
+  { value: "cambio", label: "Cambio de producto" },
+];
+
+function ReturnForm({ sale, onClose }: { sale: Sale; onClose: () => void }) {
+  const addReturn = useCajiaStore((s) => s.addReturn);
+  const [type, setType] = useState<ReturnType>("producto");
+  const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState(String(sale.total));
+  const [productId, setProductId] = useState("");
+  const [notes, setNotes] = useState("");
+  const today = todayKey();
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const parsedAmount = Number(amount);
+    if (!reason.trim() || !(parsedAmount > 0)) return;
+    addReturn({
+      saleId: sale.id,
+      type,
+      reason: reason.trim(),
+      date: today,
+      amount: parsedAmount,
+      productId: productId || undefined,
+      notes: notes.trim() || undefined,
+    });
+    onClose();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-navy-700">Tipo</label>
+        <div className="grid grid-cols-1 gap-1.5">
+          {RETURN_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setType(opt.value)}
+              className={clsx(
+                "rounded-lg border px-3 py-2 text-left text-sm font-medium",
+                type === opt.value ? "border-accent-500 bg-accent-50 text-accent-700" : "border-navy-100 text-navy-600 hover:bg-navy-50"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-navy-700">Motivo</label>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ej. Producto en mal estado"
+          required
+          className="w-full rounded-xl border border-navy-100 px-3.5 py-2.5 text-[15px] text-navy-900 focus:border-accent-400 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-navy-700">Monto devuelto (₡)</label>
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+          className="w-full rounded-xl border border-navy-100 px-3.5 py-2.5 text-[15px] text-navy-900 focus:border-accent-400 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-navy-700">Producto afectado (opcional)</label>
+        <select
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          className="w-full rounded-xl border border-navy-100 px-3.5 py-2.5 text-[15px] text-navy-900 focus:border-accent-400 focus:outline-none"
+        >
+          <option value="">Toda la venta</option>
+          {sale.items.map((item) => (
+            <option key={item.productId} value={item.productId}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-navy-700">Observaciones (opcional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className="w-full rounded-xl border border-navy-100 px-3.5 py-2.5 text-[15px] text-navy-900 focus:border-accent-400 focus:outline-none"
+        />
+      </div>
+
+      <Button type="submit" fullWidth size="lg" className="mt-2">
+        Registrar devolución
+      </Button>
+    </form>
+  );
+}
 
 export default function VentasPage() {
   const sales = useCajiaStore((s) => s.sales);
   const products = useCajiaStore((s) => s.products);
+  const settings = useCajiaStore((s) => s.settings);
   const updateSale = useCajiaStore((s) => s.updateSale);
   const deleteSale = useCajiaStore((s) => s.deleteSale);
   const today = todayKey();
@@ -48,6 +163,7 @@ export default function VentasPage() {
   const [customEnd, setCustomEnd] = useState(today);
   const [editTarget, setEditTarget] = useState<Sale | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null);
+  const [returnTarget, setReturnTarget] = useState<Sale | null>(null);
 
   const { start, end } = useMemo(() => {
     switch (filter) {
@@ -155,6 +271,11 @@ export default function VentasPage() {
                   {showDate ? `${shortDateLabel(sale.date)} · ` : ""}
                   {timeLabel(sale.timestamp)}
                 </p>
+                {settings.deliveryEnabled && (
+                  <Badge tone={PAYMENT_STATUS_META[sale.paymentStatus].tone} className="mt-1">
+                    {PAYMENT_STATUS_META[sale.paymentStatus].label}
+                  </Badge>
+                )}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="text-[14px] font-semibold text-navy-900">{formatCurrency(sale.total)}</span>
@@ -167,6 +288,14 @@ export default function VentasPage() {
                   aria-label="Editar"
                 >
                   <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setReturnTarget(sale)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-navy-50 hover:text-navy-700"
+                  aria-label="Registrar devolución"
+                  title="Registrar devolución"
+                >
+                  <RotateCcw className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setDeleteTarget(sale)}
@@ -191,6 +320,7 @@ export default function VentasPage() {
                 <th className="px-4 py-3 font-medium sm:px-6">Hora</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Venta</th>
                 <th className="px-4 py-3 font-medium sm:px-6">Método</th>
+                {settings.deliveryEnabled && <th className="px-4 py-3 font-medium sm:px-6">Pago</th>}
                 <th className="px-4 py-3 text-right font-medium sm:px-6">Total</th>
                 <th className="px-4 py-3 font-medium sm:px-6" />
               </tr>
@@ -198,7 +328,7 @@ export default function VentasPage() {
             <tbody className="divide-y divide-navy-50">
               {rangeSales.length === 0 ? (
                 <tr>
-                  <td colSpan={showDate ? 6 : 5} className="px-4 py-10 text-center text-navy-400 sm:px-6">
+                  <td colSpan={showDate ? 7 : 6} className="px-4 py-10 text-center text-navy-400 sm:px-6">
                     No hay ventas registradas en este período.
                   </td>
                 </tr>
@@ -213,6 +343,13 @@ export default function VentasPage() {
                     <td className="px-4 py-3 sm:px-6">
                       <Badge tone={METHOD_TONE[sale.method]}>{methodLabel(sale.method)}</Badge>
                     </td>
+                    {settings.deliveryEnabled && (
+                      <td className="px-4 py-3 sm:px-6">
+                        <Badge tone={PAYMENT_STATUS_META[sale.paymentStatus].tone}>
+                          {PAYMENT_STATUS_META[sale.paymentStatus].label}
+                        </Badge>
+                      </td>
+                    )}
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy-900 sm:px-6">
                       {formatCurrency(sale.total)}
                     </td>
@@ -224,6 +361,14 @@ export default function VentasPage() {
                           aria-label="Editar"
                         >
                           <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setReturnTarget(sale)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-navy-400 hover:bg-navy-50 hover:text-navy-700"
+                          aria-label="Registrar devolución"
+                          title="Registrar devolución"
+                        >
+                          <RotateCcw className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(sale)}
@@ -242,7 +387,11 @@ export default function VentasPage() {
         </div>
       </Card>
 
-      <SaleEditModal sale={editTarget} products={products} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />
+      <SaleEditModal sale={editTarget} products={products} paymentMethods={settings.paymentMethods} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />
+
+      <Modal open={!!returnTarget} onClose={() => setReturnTarget(null)} title="Registrar devolución">
+        {returnTarget && <ReturnForm key={returnTarget.id} sale={returnTarget} onClose={() => setReturnTarget(null)} />}
+      </Modal>
 
       <ConfirmModal
         open={!!deleteTarget}

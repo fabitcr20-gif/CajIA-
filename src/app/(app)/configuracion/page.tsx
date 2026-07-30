@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Banknote, CreditCard, Smartphone, CloudUpload, Unplug } from "lucide-react";
+import { CheckCircle2, CloudUpload, Unplug, Truck } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -12,6 +12,7 @@ import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { PaymentMethod } from "@/lib/types";
 import { BUSINESS_PRESETS, BusinessPresetId } from "@/lib/data/businessPresets";
+import { PAYMENT_METHODS, PAYMENT_METHOD_META } from "@/lib/payments";
 import {
   describeGoogleOAuthError,
   disconnectGoogleDrive,
@@ -23,12 +24,6 @@ import clsx from "clsx";
 const PRESET_OPTIONS: { value: BusinessPresetId; label: string }[] = (
   Object.keys(BUSINESS_PRESETS) as BusinessPresetId[]
 ).map((id) => ({ value: id, label: BUSINESS_PRESETS[id].label }));
-
-const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
-  { value: "efectivo", label: "Efectivo", icon: Banknote },
-  { value: "tarjeta", label: "Tarjeta", icon: CreditCard },
-  { value: "sinpe", label: "SINPE", icon: Smartphone },
-];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -187,13 +182,13 @@ export default function ConfiguracionPage() {
           </CardHeader>
           <CardBody>
             <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const active = form.paymentMethods.includes(opt.value);
+              {PAYMENT_METHODS.map((m) => {
+                const Icon = PAYMENT_METHOD_META[m].icon;
+                const active = form.paymentMethods.includes(m);
                 return (
                   <button
-                    key={opt.value}
-                    onClick={() => togglePaymentMethod(opt.value)}
+                    key={m}
+                    onClick={() => togglePaymentMethod(m)}
                     className={clsx(
                       "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-4 text-xs font-medium transition-colors",
                       active
@@ -202,7 +197,7 @@ export default function ConfiguracionPage() {
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    {opt.label}
+                    {PAYMENT_METHOD_META[m].label}
                   </button>
                 );
               })}
@@ -210,6 +205,45 @@ export default function ConfiguracionPage() {
             <p className="mt-3 text-xs text-navy-400">
               Selecciona los métodos de pago disponibles en tu punto de venta.
             </p>
+          </CardBody>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Pedidos y entregas</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-navy-100 p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-600">
+                  <Truck className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-[15px] font-medium text-navy-900">¿Manejas pedidos con entrega?</p>
+                  <p className="mt-0.5 text-sm text-navy-500">
+                    Activa esto si vendes por redes sociales o entregas a domicilio. Habilita el módulo de Pedidos,
+                    estado de entrega y estado de pago en Nueva venta.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.deliveryEnabled}
+                onClick={() => setForm({ ...form, deliveryEnabled: !form.deliveryEnabled })}
+                className={clsx(
+                  "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                  form.deliveryEnabled ? "bg-accent-600" : "bg-navy-200"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                    form.deliveryEnabled ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
           </CardBody>
         </Card>
 

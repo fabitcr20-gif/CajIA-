@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import clsx from "clsx";
-import { Wallet, Receipt, Calculator, CreditCard, Star, CalendarDays } from "lucide-react";
+import { Wallet, Receipt, Calculator, CreditCard, Star, CalendarDays, RotateCcw, ClipboardList } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { WeeklySalesChart } from "@/components/charts/WeeklySalesChart";
 import { PaymentMethodChart } from "@/components/charts/PaymentMethodChart";
 import { TopProductsChart } from "@/components/charts/TopProductsChart";
+import { ORDER_STATUS_META, ORDER_STATUSES } from "@/lib/orders";
 import {
   addDaysToKey,
   averageTicket,
@@ -17,9 +18,11 @@ import {
   dateLabel,
   formatCurrency,
   getDailySeries,
+  getReturnsForSales,
   getSalesInRange,
   methodLabel,
   mostUsedMethod,
+  sumReturns,
   sumTotal,
   todayKey,
   topProducts,
@@ -36,6 +39,8 @@ const RANGES: { key: RangeKey; label: string }[] = [
 
 export default function EstadisticasPage() {
   const sales = useCajiaStore((s) => s.sales);
+  const returns = useCajiaStore((s) => s.returns);
+  const settings = useCajiaStore((s) => s.settings);
   const today = todayKey();
   const [range, setRange] = useState<RangeKey>("30d");
 
@@ -63,6 +68,12 @@ export default function EstadisticasPage() {
     (best, d) => (d.total > best.total ? d : best),
     { label: "", date: today, total: -1 }
   );
+
+  const rangeReturnsTotal = sumReturns(getReturnsForSales(returns, rangeSales));
+  const statusCounts = ORDER_STATUSES.reduce<Record<string, number>>((acc, s) => {
+    acc[s] = rangeSales.filter((sale) => sale.status === s).length;
+    return acc;
+  }, {});
 
   return (
     <div className="animate-fade-in pb-6">
@@ -102,7 +113,39 @@ export default function EstadisticasPage() {
           accent="navy"
           className="col-span-2 lg:col-span-1"
         />
+        {returns.length > 0 && (
+          <StatCard
+            label="Total devoluciones"
+            value={`-${formatCurrency(rangeReturnsTotal)}`}
+            icon={<RotateCcw className="h-4 w-4" />}
+            accent="amber"
+            className="col-span-2 lg:col-span-1"
+          />
+        )}
       </div>
+
+      {settings.deliveryEnabled && (
+        <div className="mt-4 sm:mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-[18px] w-[18px] text-navy-500" />
+                Pedidos por estado
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {ORDER_STATUSES.map((s) => (
+                  <div key={s} className="rounded-xl border border-navy-100 p-3 text-center">
+                    <p className="text-2xl font-semibold text-navy-900">{statusCounts[s] ?? 0}</p>
+                    <p className="mt-1 text-xs font-medium text-navy-500">{ORDER_STATUS_META[s].label}</p>
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

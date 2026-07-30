@@ -14,7 +14,10 @@ export function Sidebar() {
   const settings = useCajiaStore((s) => s.settings);
   const businessPresetId = useCajiaStore((s) => s.businessPresetId);
   const logout = useCajiaStore((s) => s.logout);
-  const NAV_ITEMS = buildNavItems(BUSINESS_PRESETS[businessPresetId].productsLabel);
+  const NAV_ITEMS = buildNavItems({
+    productsLabel: BUSINESS_PRESETS[businessPresetId].productsLabel,
+    deliveryEnabled: settings.deliveryEnabled,
+  });
 
   return (
     <aside className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:border-r md:border-navy-800/60 md:bg-navy-900">

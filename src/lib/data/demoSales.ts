@@ -45,6 +45,11 @@ function makeSale(
     items,
     total,
     method,
+    // Demo sales simulate walk-in / already-completed orders — realistic
+    // for every current preset, none of which has deliveryEnabled on by
+    // default.
+    status: "entregado",
+    paymentStatus: "pagado",
     label: buildLabel(items),
   };
 }

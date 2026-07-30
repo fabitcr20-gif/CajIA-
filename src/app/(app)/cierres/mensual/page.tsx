@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Banknote,
-  CreditCard,
-  Smartphone,
   Sparkles,
   Download,
   Save,
@@ -15,6 +12,8 @@ import {
   Wallet,
   Receipt,
   Calculator,
+  RotateCcw,
+  Tag,
 } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -25,6 +24,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { WeeklySalesChart } from "@/components/charts/WeeklySalesChart";
 import { formatCurrency, todayKey } from "@/lib/selectors";
+import { PAYMENT_METHOD_META } from "@/lib/payments";
 import { buildMonthlyClosure } from "@/lib/services/closureService";
 import { generateMonthlyClosurePDF, monthlyClosurePdfBlob, monthlyClosurePdfFileName } from "@/lib/services/pdfService";
 import { describeGoogleOAuthError, exportPdfToDrive, getDriveStatus, getGoogleConnectUrl } from "@/lib/services/driveService";
@@ -43,9 +43,11 @@ function monthOptionLabel(key: string) {
 
 export default function CierreMensualPage() {
   const sales = useCajiaStore((s) => s.sales);
+  const returns = useCajiaStore((s) => s.returns);
   const settings = useCajiaStore((s) => s.settings);
   const saveReport = useCajiaStore((s) => s.saveReport);
   const today = todayKey();
+  const enabledMethods = settings.paymentMethods;
 
   const availableMonths = Array.from(new Set(sales.map((s) => s.date.slice(0, 7))))
     .sort()
@@ -88,7 +90,7 @@ export default function CierreMensualPage() {
     setGenerating(true);
     setGenerateError(false);
     try {
-      const result = await buildMonthlyClosure(sales, monthKey);
+      const result = await buildMonthlyClosure(sales, returns, monthKey);
       setClosure(result);
       setSaved(false);
       setDriveStatus("idle");
@@ -227,9 +229,23 @@ export default function CierreMensualPage() {
                 <StatCard label="Ventas totales" value={formatCurrency(closure.totalSales)} icon={<Wallet className="h-4 w-4" />} accent="accent" />
                 <StatCard label="Transacciones" value={String(closure.transactions)} icon={<Receipt className="h-4 w-4" />} accent="navy" />
                 <StatCard label="Ticket promedio" value={formatCurrency(closure.averageTicket)} icon={<Calculator className="h-4 w-4" />} accent="sky" />
-                <StatCard label="Efectivo" value={formatCurrency(closure.breakdown.efectivo)} icon={<Banknote className="h-4 w-4" />} accent="sky" />
-                <StatCard label="Tarjeta" value={formatCurrency(closure.breakdown.tarjeta)} icon={<CreditCard className="h-4 w-4" />} accent="amber" />
-                <StatCard label="SINPE" value={formatCurrency(closure.breakdown.sinpe)} icon={<Smartphone className="h-4 w-4" />} accent="accent" />
+                {enabledMethods.map((m) => {
+                  const Icon = PAYMENT_METHOD_META[m].icon;
+                  return (
+                    <StatCard key={m} label={PAYMENT_METHOD_META[m].label} value={formatCurrency(closure.breakdown[m])} icon={<Icon className="h-4 w-4" />} accent="sky" />
+                  );
+                })}
+                {closure.returnsTotal > 0 && (
+                  <StatCard label="Devoluciones" value={`-${formatCurrency(closure.returnsTotal)}`} icon={<RotateCcw className="h-4 w-4" />} accent="amber" />
+                )}
+                {closure.discountsTotal > 0 && (
+                  <StatCard label="Descuentos" value={`-${formatCurrency(closure.discountsTotal)}`} icon={<Tag className="h-4 w-4" />} accent="amber" />
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-navy-50 px-4 py-3.5">
+                <span className="text-[15px] font-semibold text-navy-900">Total neto</span>
+                <span className="text-xl font-bold text-navy-900">{formatCurrency(closure.netTotal)}</span>
               </div>
             </CardBody>
           </Card>

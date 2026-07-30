@@ -1,4 +1,18 @@
-export type PaymentMethod = "efectivo" | "tarjeta" | "sinpe";
+export type PaymentMethod = "efectivo" | "tarjeta" | "sinpe" | "transferencia" | "otro";
+
+// A pedido's lifecycle. Walk-in / immediate sales are always "entregado" —
+// this only becomes meaningful once a business turns on deliveryEnabled.
+export type OrderStatus = "pendiente" | "preparando" | "en_ruta" | "entregado" | "cancelado" | "devuelto";
+
+export type PaymentStatus = "pendiente" | "parcial" | "pagado";
+
+export interface DeliveryInfo {
+  courierName?: string;
+  courierCompany?: string;
+  ownRoute?: boolean;
+  trackingNumber?: string;
+  deliveryAt?: string; // ISO datetime
+}
 
 export interface Product {
   id: string;
@@ -25,12 +39,47 @@ export interface Sale {
   total: number;
   method: PaymentMethod;
   label: string; // human readable summary, e.g. "Café americano x2"
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  discount?: number;
+  delivery?: DeliveryInfo;
+}
+
+export type ReturnType = "producto" | "dinero" | "cambio";
+
+export interface Return {
+  id: string;
+  saleId: string;
+  type: ReturnType;
+  reason: string;
+  date: string; // yyyy-MM-dd
+  amount: number;
+  productId?: string;
+  notes?: string;
+}
+
+export type HistoryEventType =
+  | "venta"
+  | "pedido_entregado"
+  | "pedido_cancelado"
+  | "producto_devuelto"
+  | "dinero_reembolsado"
+  | "cambio_estado";
+
+export interface HistoryEvent {
+  id: string;
+  type: HistoryEventType;
+  timestamp: string;
+  description: string;
+  saleId?: string;
 }
 
 export interface PaymentBreakdown {
   efectivo: number;
   tarjeta: number;
   sinpe: number;
+  transferencia: number;
+  otro: number;
 }
 
 export interface DailyClosure {
@@ -44,6 +93,9 @@ export interface DailyClosure {
   peakHours: string;
   aiAnalysis: string;
   generatedAt: string;
+  returnsTotal: number;
+  discountsTotal: number;
+  netTotal: number;
 }
 
 export interface MonthlyClosure {
@@ -57,6 +109,9 @@ export interface MonthlyClosure {
   weeklyTotals: { label: string; total: number }[];
   aiAnalysis: string;
   generatedAt: string;
+  returnsTotal: number;
+  discountsTotal: number;
+  netTotal: number;
 }
 
 export type ReportType = "diario" | "mensual";
@@ -79,4 +134,5 @@ export interface BusinessSettings {
   phone: string;
   email: string;
   paymentMethods: PaymentMethod[];
+  deliveryEnabled: boolean;
 }

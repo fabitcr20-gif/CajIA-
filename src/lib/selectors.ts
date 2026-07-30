@@ -1,5 +1,6 @@
-import { PaymentBreakdown, PaymentMethod, Sale } from "@/lib/types";
+import { PaymentBreakdown, PaymentMethod, Return, Sale } from "@/lib/types";
 import { DEMO_TODAY } from "@/lib/data/demoSales";
+import { PAYMENT_METHODS, PAYMENT_METHOD_META } from "@/lib/payments";
 
 export function todayKey(): string {
   return DEMO_TODAY;
@@ -50,7 +51,7 @@ export function sumTotal(sales: Sale[]): number {
 }
 
 export function breakdownByMethod(sales: Sale[]): PaymentBreakdown {
-  const breakdown: PaymentBreakdown = { efectivo: 0, tarjeta: 0, sinpe: 0 };
+  const breakdown = Object.fromEntries(PAYMENT_METHODS.map((m) => [m, 0])) as unknown as PaymentBreakdown;
   for (const s of sales) {
     breakdown[s.method] += s.total;
   }
@@ -70,7 +71,22 @@ export function mostUsedMethod(sales: Sale[]): PaymentMethod {
 }
 
 export function methodLabel(method: PaymentMethod): string {
-  return { efectivo: "Efectivo", tarjeta: "Tarjeta", sinpe: "SINPE" }[method];
+  return PAYMENT_METHOD_META[method].label;
+}
+
+// Returns are linked to a sale, not directly to a date range, so we scope
+// them by which sales (already filtered to the period) they belong to.
+export function getReturnsForSales(returns: Return[], sales: Sale[]): Return[] {
+  const saleIds = new Set(sales.map((s) => s.id));
+  return returns.filter((r) => saleIds.has(r.saleId));
+}
+
+export function sumReturns(returns: Return[]): number {
+  return returns.reduce((sum, r) => sum + r.amount, 0);
+}
+
+export function sumDiscounts(sales: Sale[]): number {
+  return sales.reduce((sum, s) => sum + (s.discount ?? 0), 0);
 }
 
 export interface TopProduct {

@@ -18,6 +18,7 @@ import { SavedReport } from "@/lib/types";
 export default function InformesPage() {
   const savedReports = useCajiaStore((s) => s.savedReports);
   const sales = useCajiaStore((s) => s.sales);
+  const returns = useCajiaStore((s) => s.returns);
   const settings = useCajiaStore((s) => s.settings);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
@@ -28,10 +29,10 @@ export default function InformesPage() {
     setErrorId(null);
     try {
       if (report.type === "diario") {
-        const closure = await buildDailyClosure(sales, report.periodKey);
+        const closure = await buildDailyClosure(sales, returns, report.periodKey);
         generateDailyClosurePDF(closure, settings);
       } else {
-        const closure = await buildMonthlyClosure(sales, report.periodKey);
+        const closure = await buildMonthlyClosure(sales, returns, report.periodKey);
         generateMonthlyClosurePDF(closure, settings);
       }
     } catch {

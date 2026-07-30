@@ -12,7 +12,11 @@ export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const businessPresetId = useCajiaStore((s) => s.businessPresetId);
-  const MOBILE_MORE_ITEMS = buildMobileMoreItems(BUSINESS_PRESETS[businessPresetId].productsLabel);
+  const deliveryEnabled = useCajiaStore((s) => s.settings.deliveryEnabled);
+  const MOBILE_MORE_ITEMS = buildMobileMoreItems({
+    productsLabel: BUSINESS_PRESETS[businessPresetId].productsLabel,
+    deliveryEnabled,
+  });
 
   const isActive = (href: string) => pathname === href;
 

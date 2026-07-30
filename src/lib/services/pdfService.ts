@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
-import { BusinessSettings, DailyClosure, MonthlyClosure } from "@/lib/types";
+import { BusinessSettings, DailyClosure, MonthlyClosure, PaymentBreakdown } from "@/lib/types";
 import { dateLabel, formatCurrency } from "@/lib/selectors";
+import { PAYMENT_METHODS, PAYMENT_METHOD_META } from "@/lib/payments";
 import { DEJAVU_SANS_BOLD_BASE64, DEJAVU_SANS_REGULAR_BASE64 } from "@/lib/services/fonts";
 import { CAJIA_LOGO_ASPECT_RATIO, CAJIA_LOGO_PNG_BASE64 } from "@/lib/services/logoAsset";
 
@@ -99,6 +100,32 @@ function drawKeyValueRow(doc: jsPDF, label: string, value: string, y: number): n
   return y + 6.5;
 }
 
+function drawClosureTotals(
+  doc: jsPDF,
+  breakdown: PaymentBreakdown,
+  returnsTotal: number,
+  discountsTotal: number,
+  netTotal: number,
+  y: number
+): number {
+  let cursor = drawSectionTitle(doc, "Desglose por método de pago", y);
+  for (const m of PAYMENT_METHODS) {
+    if (breakdown[m] === 0) continue;
+    cursor = drawKeyValueRow(doc, PAYMENT_METHOD_META[m].label, formatCurrency(breakdown[m]), cursor);
+  }
+  cursor += 4;
+
+  if (returnsTotal > 0 || discountsTotal > 0) {
+    cursor = drawSectionTitle(doc, "Ajustes", cursor);
+    if (returnsTotal > 0) cursor = drawKeyValueRow(doc, "Devoluciones", `-${formatCurrency(returnsTotal)}`, cursor);
+    if (discountsTotal > 0) cursor = drawKeyValueRow(doc, "Descuentos", `-${formatCurrency(discountsTotal)}`, cursor);
+    cursor += 4;
+  }
+
+  cursor = drawKeyValueRow(doc, "Total neto", formatCurrency(netTotal), cursor);
+  return cursor + 4;
+}
+
 function drawParagraph(doc: jsPDF, text: string, y: number): number {
   doc.setFont(FONT, "normal");
   doc.setFontSize(10);
@@ -129,11 +156,7 @@ function buildDailyClosureDoc(closure: DailyClosure, settings: BusinessSettings)
   y = drawKeyValueRow(doc, "Ticket promedio", formatCurrency(closure.averageTicket), y);
   y += 4;
 
-  y = drawSectionTitle(doc, "Desglose por método de pago", y);
-  y = drawKeyValueRow(doc, "Efectivo", formatCurrency(closure.breakdown.efectivo), y);
-  y = drawKeyValueRow(doc, "Tarjeta", formatCurrency(closure.breakdown.tarjeta), y);
-  y = drawKeyValueRow(doc, "SINPE", formatCurrency(closure.breakdown.sinpe), y);
-  y += 4;
+  y = drawClosureTotals(doc, closure.breakdown, closure.returnsTotal, closure.discountsTotal, closure.netTotal, y);
 
   if (closure.topProducts.length) {
     y = drawSectionTitle(doc, "Productos destacados", y);
@@ -184,11 +207,7 @@ function buildMonthlyClosureDoc(closure: MonthlyClosure, settings: BusinessSetti
   y = drawKeyValueRow(doc, "Ticket promedio", formatCurrency(closure.averageTicket), y);
   y += 4;
 
-  y = drawSectionTitle(doc, "Desglose por método de pago", y);
-  y = drawKeyValueRow(doc, "Efectivo", formatCurrency(closure.breakdown.efectivo), y);
-  y = drawKeyValueRow(doc, "Tarjeta", formatCurrency(closure.breakdown.tarjeta), y);
-  y = drawKeyValueRow(doc, "SINPE", formatCurrency(closure.breakdown.sinpe), y);
-  y += 4;
+  y = drawClosureTotals(doc, closure.breakdown, closure.returnsTotal, closure.discountsTotal, closure.netTotal, y);
 
   y = drawSectionTitle(doc, "Ventas por semana", y);
   for (const w of closure.weeklyTotals) {

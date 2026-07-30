@@ -3,20 +3,19 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { PaymentBreakdown } from "@/lib/types";
 import { formatCurrency } from "@/lib/selectors";
-
-const COLORS: Record<string, string> = {
-  Efectivo: "#5b7099",
-  Tarjeta: "#0d9488",
-  SINPE: "#f0a83a",
-};
+import { PAYMENT_METHODS, PAYMENT_METHOD_META } from "@/lib/payments";
 
 export function PaymentMethodChart({ breakdown }: { breakdown: PaymentBreakdown }) {
-  const data = [
-    { name: "Efectivo", value: breakdown.efectivo },
-    { name: "Tarjeta", value: breakdown.tarjeta },
-    { name: "SINPE", value: breakdown.sinpe },
-  ];
+  const data = PAYMENT_METHODS.filter((m) => breakdown[m] > 0).map((m) => ({
+    name: PAYMENT_METHOD_META[m].label,
+    value: breakdown[m],
+    color: PAYMENT_METHOD_META[m].color,
+  }));
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
+
+  if (data.length === 0) {
+    return <p className="py-8 text-center text-sm text-navy-400">No hay ventas para este período.</p>;
+  }
 
   return (
     <div>
@@ -33,7 +32,7 @@ export function PaymentMethodChart({ breakdown }: { breakdown: PaymentBreakdown 
               stroke="none"
             >
               {data.map((d) => (
-                <Cell key={d.name} fill={COLORS[d.name]} />
+                <Cell key={d.name} fill={d.color} />
               ))}
             </Pie>
             <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ borderRadius: 12, border: "1px solid #dbe3f0", fontSize: 13 }} />
@@ -44,7 +43,7 @@ export function PaymentMethodChart({ breakdown }: { breakdown: PaymentBreakdown 
         {data.map((d) => (
           <div key={d.name} className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[d.name] }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
               <span className="text-navy-600">{d.name}</span>
             </div>
             <div className="flex items-center gap-2">

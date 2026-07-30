@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Banknote,
-  CreditCard,
-  Smartphone,
   Sparkles,
   Download,
   Save,
@@ -15,6 +12,8 @@ import {
   Wallet,
   Receipt,
   Calculator,
+  RotateCcw,
+  Tag,
 } from "lucide-react";
 import { useCajiaStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -31,6 +30,7 @@ import {
   sumTotal,
   todayKey,
 } from "@/lib/selectors";
+import { PAYMENT_METHOD_META } from "@/lib/payments";
 import { buildDailyClosure } from "@/lib/services/closureService";
 import { dailyClosurePdfBlob, dailyClosurePdfFileName, generateDailyClosurePDF } from "@/lib/services/pdfService";
 import { describeGoogleOAuthError, exportPdfToDrive, getDriveStatus, getGoogleConnectUrl } from "@/lib/services/driveService";
@@ -38,6 +38,7 @@ import { DailyClosure, SavedReport } from "@/lib/types";
 
 export default function CierresPage() {
   const sales = useCajiaStore((s) => s.sales);
+  const returns = useCajiaStore((s) => s.returns);
   const settings = useCajiaStore((s) => s.settings);
   const saveReport = useCajiaStore((s) => s.saveReport);
 
@@ -45,6 +46,7 @@ export default function CierresPage() {
   const todaySales = getSalesForDate(sales, today);
   const totalToday = sumTotal(todaySales);
   const breakdown = breakdownByMethod(todaySales);
+  const enabledMethods = settings.paymentMethods;
 
   const [closure, setClosure] = useState<DailyClosure | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -82,7 +84,7 @@ export default function CierresPage() {
     setGenerating(true);
     setGenerateError(false);
     try {
-      const result = await buildDailyClosure(sales, today);
+      const result = await buildDailyClosure(sales, returns, today);
       setClosure(result);
     } catch {
       setGenerateError(true);
@@ -176,9 +178,12 @@ export default function CierresPage() {
         </CardHeader>
         <CardBody>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Efectivo" value={formatCurrency(breakdown.efectivo)} icon={<Banknote className="h-4 w-4" />} accent="sky" />
-            <StatCard label="Tarjeta" value={formatCurrency(breakdown.tarjeta)} icon={<CreditCard className="h-4 w-4" />} accent="amber" />
-            <StatCard label="SINPE" value={formatCurrency(breakdown.sinpe)} icon={<Smartphone className="h-4 w-4" />} accent="accent" />
+            {enabledMethods.map((m) => {
+              const Icon = PAYMENT_METHOD_META[m].icon;
+              return (
+                <StatCard key={m} label={PAYMENT_METHOD_META[m].label} value={formatCurrency(breakdown[m])} icon={<Icon className="h-4 w-4" />} accent="sky" />
+              );
+            })}
             <StatCard label="Total" value={formatCurrency(totalToday)} icon={<Wallet className="h-4 w-4" />} accent="navy" />
           </div>
           <p className="mt-4 text-sm text-navy-500">
@@ -213,9 +218,23 @@ export default function CierresPage() {
                 <StatCard label="Total vendido" value={formatCurrency(closure.totalSales)} icon={<Wallet className="h-4 w-4" />} accent="accent" />
                 <StatCard label="Número de ventas" value={String(closure.transactions)} icon={<Receipt className="h-4 w-4" />} accent="navy" />
                 <StatCard label="Ticket promedio" value={formatCurrency(closure.averageTicket)} icon={<Calculator className="h-4 w-4" />} accent="sky" />
-                <StatCard label="Efectivo" value={formatCurrency(closure.breakdown.efectivo)} icon={<Banknote className="h-4 w-4" />} accent="sky" />
-                <StatCard label="Tarjeta" value={formatCurrency(closure.breakdown.tarjeta)} icon={<CreditCard className="h-4 w-4" />} accent="amber" />
-                <StatCard label="SINPE" value={formatCurrency(closure.breakdown.sinpe)} icon={<Smartphone className="h-4 w-4" />} accent="accent" />
+                {enabledMethods.map((m) => {
+                  const Icon = PAYMENT_METHOD_META[m].icon;
+                  return (
+                    <StatCard key={m} label={PAYMENT_METHOD_META[m].label} value={formatCurrency(closure.breakdown[m])} icon={<Icon className="h-4 w-4" />} accent="sky" />
+                  );
+                })}
+                {closure.returnsTotal > 0 && (
+                  <StatCard label="Devoluciones" value={`-${formatCurrency(closure.returnsTotal)}`} icon={<RotateCcw className="h-4 w-4" />} accent="amber" />
+                )}
+                {closure.discountsTotal > 0 && (
+                  <StatCard label="Descuentos" value={`-${formatCurrency(closure.discountsTotal)}`} icon={<Tag className="h-4 w-4" />} accent="amber" />
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-navy-50 px-4 py-3.5">
+                <span className="text-[15px] font-semibold text-navy-900">Total neto</span>
+                <span className="text-xl font-bold text-navy-900">{formatCurrency(closure.netTotal)}</span>
               </div>
             </CardBody>
           </Card>

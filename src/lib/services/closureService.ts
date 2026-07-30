@@ -1,11 +1,14 @@
-import { DailyClosure, MonthlyClosure, Sale } from "@/lib/types";
+import { DailyClosure, MonthlyClosure, Return, Sale } from "@/lib/types";
 import {
   addDaysToKey,
   averageTicket,
   breakdownByMethod,
+  getReturnsForSales,
   mostUsedMethod,
   peakHourRange,
   percentChange,
+  sumDiscounts,
+  sumReturns,
   sumTotal,
   topProducts,
   getSalesForDate,
@@ -14,11 +17,15 @@ import {
 import { generateDailyAIAnalysis, generateMonthlyAIAnalysis } from "@/lib/services/aiService";
 import { DEMO_TODAY } from "@/lib/data/demoSales";
 
-export async function buildDailyClosure(sales: Sale[], date: string): Promise<DailyClosure> {
+export async function buildDailyClosure(sales: Sale[], returns: Return[], date: string): Promise<DailyClosure> {
   const daySales = getSalesForDate(sales, date);
   const yesterdaySales = getSalesForDate(sales, addDaysToKey(date, -1));
+  const dayReturns = getReturnsForSales(returns, daySales);
 
   const totalSales = sumTotal(daySales);
+  const returnsTotal = sumReturns(dayReturns);
+  const discountsTotal = sumDiscounts(daySales);
+  const netTotal = totalSales - returnsTotal - discountsTotal;
   const breakdown = breakdownByMethod(daySales);
   const transactions = daySales.length;
   const topProds = topProducts(daySales, 5);
@@ -47,6 +54,9 @@ export async function buildDailyClosure(sales: Sale[], date: string): Promise<Da
     peakHours,
     aiAnalysis,
     generatedAt: new Date().toISOString(),
+    returnsTotal,
+    discountsTotal,
+    netTotal,
   };
 }
 
@@ -79,9 +89,13 @@ function weeksInMonth(sales: Sale[], monthKey: string) {
   return weeks;
 }
 
-export async function buildMonthlyClosure(sales: Sale[], monthKey: string): Promise<MonthlyClosure> {
+export async function buildMonthlyClosure(sales: Sale[], returns: Return[], monthKey: string): Promise<MonthlyClosure> {
   const monthSales = getSalesForMonth(sales, monthKey);
+  const monthReturns = getReturnsForSales(returns, monthSales);
   const totalSales = sumTotal(monthSales);
+  const returnsTotal = sumReturns(monthReturns);
+  const discountsTotal = sumDiscounts(monthSales);
+  const netTotal = totalSales - returnsTotal - discountsTotal;
   const breakdown = breakdownByMethod(monthSales);
   const transactions = monthSales.length;
   const method = mostUsedMethod(monthSales);
@@ -108,5 +122,8 @@ export async function buildMonthlyClosure(sales: Sale[], monthKey: string): Prom
     weeklyTotals,
     aiAnalysis,
     generatedAt: new Date().toISOString(),
+    returnsTotal,
+    discountsTotal,
+    netTotal,
   };
 }
